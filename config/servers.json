@@ -1,0 +1,14 @@
+{
+    "mcpservers": {
+        "temperature_server": {
+            "type": "http",
+            "url": "http://localhost:8001",
+            "description": "Temperature conversion server"
+        },
+        "terminal_server": {
+            "type": "stdio",
+            "command": "python -m servers.stdio.terminal_server",
+            "description": "Terminal command execution server for file operations and system tasks"
+        }
+    }
+}
