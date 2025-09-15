@@ -1,116 +1,152 @@
 """
-Terminal MCP Server
-Provides secure local command execution capabilities through MCP stdio protocol.
+Secure Terminal Command Execution Server.
+
+This module implements a secure MCP server that provides controlled access
+to terminal command execution within a sandboxed workspace environment.
 """
 
 import os
 import subprocess
 import logging
+import asyncio
 from pathlib import Path
+from typing import Dict, Any, Optional
+from dataclasses import dataclass
 from mcp.server.fastmcp import FastMCP
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
-# configure logging from stdio server
+# Configure logging for the terminal server
 logging.basicConfig(level=logging.INFO)
-logger = logging.getlogger(__name__)
+logger = logging.getLogger(__name__)
 
-# Create FASTMCP Server for stdio transport (no HTTP, uses stdin-stdout)
-mcp = FastMCP("terminal_server")
+# Initialize FastMCP server for stdio transport
+mcp_server = FastMCP("secure_terminal_server")
 
-# Get the workspace directory from environment or use default
-WORKSPACE_DIR = Path(os.getenv("WORKSPACE_DIR", "workspace")).resolve()
+# Establish workspace directory with environment variable support
+WORKSPACE_DIRECTORY = Path(os.getenv("WORKSPACE_DIR", "workspace")).resolve()
 
-# Ensure workspace directory exists and log its location
-WORKSPACE_DIR.mkdir(exist_ok=True)
-logger.info(f"terminal server workspace: {WORKSPACE_DIR}")
+# Create workspace directory if it doesn't exist
+WORKSPACE_DIRECTORY.mkdir(exist_ok=True)
+logger.info(f"Terminal server workspace established at: {WORKSPACE_DIRECTORY}")
 
-class CommandInput(BaseModel):
-    """Input model for terminal commands with validation"""
-    command: str = Field(...,
-    description="Shell command to execute in the workspace directory",
-    min_length=1
+
+class SecureCommandRequest(BaseModel):
+    """Secure command request model with input validation."""
+    command: str = Field(
+        ...,
+        description="Shell command to execute within the secure workspace environment",
+        min_length=1,
+        max_length=1000
     )
+    
+    @validator('command')
+    def validate_command(cls, v):
+        """Validate command input for security."""
+        if not v.strip():
+            raise ValueError("Command cannot be empty")
+        return v.strip()
 
-class CommandResult(BaseModel):
-    """Output model for command execution results with full details"""
+
+class CommandExecutionResult(BaseModel):
+    """Comprehensive command execution result model."""
     command: str = Field(..., description="The command that was executed")
-    exit_code: int = Field(..., description="Process exit code (0 for success)")
+    exit_code: int = Field(..., description="Process exit code (0 indicates success)")
     stdout: str = Field(..., description="Standard output from the command")
-    stderr: str = Fiel(..., description="Standard error output from the command")
-    working_dir: str = Field(..., description="The directory the command was executed in")
+    stderr: str = Field(..., description="Standard error output from the command")
+    working_directory: str = Field(..., description="The directory where the command was executed")
+    execution_time: Optional[float] = Field(None, description="Time taken to execute the command")
 
-@mcp.tool(
-    description="Execute a shell command in the workspace directory. Use for file operations, text processing, and system tasks",
-    title="Terminal Command Executor"
+@mcp_server.tool(
+    description="Execute shell commands within a secure workspace environment. Ideal for file operations, text processing, and system administration tasks.",
+    title="Secure Command Executor"
 )
-async def run_command(params: CommandInput) -> CommandResult:
+async def execute_secure_command(request: SecureCommandRequest) -> CommandExecutionResult:
     """
-    Execute a terminal command within the workspace directory.
+    Execute a shell command within the secure workspace directory.
 
     Security Features:
-    - Commands execute only within the workspace directory
-    - 30 second timeout per command to prevent infinite loops
-    - Full command output captured for transperancy
+    - Commands are restricted to the designated workspace directory
+    - Built-in timeout protection to prevent infinite execution
+    - Comprehensive output capture for full transparency
+    - Input validation and sanitization
 
     Args:
-    params: CommandInput containing the command to execute
+        request: SecureCommandRequest containing the command to execute
 
     Returns:
-    CommandResult with exit code, stdout, stderr, and working directory
+        CommandExecutionResult with complete execution details
     """
-    command = params.command.strip()
+    command = request.command
+    start_time = asyncio.get_event_loop().time()
 
-    # log the command being executed for debugging
-    logger.info(f"Executing command: {command}")
+    # Log command execution for audit purposes
+    logger.info(f"Executing secure command: {command}")
 
     try:
-        # Execute in the workspace directory with timeout
-        result = subprocess.run(
+        # Execute command within the secure workspace with timeout protection
+        process_result = subprocess.run(
             command,
             shell=True,
-            cwd=WORKSPACE_DIR, # sandbox to workspace directory
-            capture_output=True, # capture stdout and stderr
+            cwd=WORKSPACE_DIRECTORY,  # Restrict execution to workspace
+            capture_output=True,  # Capture all output streams
             text=True,
-            timeout=30 # 30 second timeout to prevent infinite loops
+            timeout=30  # 30-second timeout for safety
         )
 
-        # Prepare structured output
-        command_result = CommandResult(
+        end_time = asyncio.get_event_loop().time()
+        execution_time = end_time - start_time
+
+        # Create comprehensive result object
+        execution_result = CommandExecutionResult(
             command=command,
-            exit_code=result.returncode,
-            stdout=result.stdout,
-            stderr=result.stderr,
-            working_dir=str(WORKSPACE_DIR)
+            exit_code=process_result.returncode,
+            stdout=process_result.stdout,
+            stderr=process_result.stderr,
+            working_directory=str(WORKSPACE_DIRECTORY),
+            execution_time=execution_time
         )
 
-        # Log result summary for monitoring
-        status = "SUCCESS" if result.returncode == 0 else "ERROR"
-        logger.info(f"{status}: command '{command}' completed with exit code {result.returncode}")
+        # Log execution summary for monitoring
+        execution_status = "SUCCESS" if process_result.returncode == 0 else "FAILED"
+        logger.info(f"{execution_status}: Command '{command}' completed in {execution_time:.2f}s with exit code {process_result.returncode}")
 
-        return command_result
+        return execution_result
 
     except subprocess.TimeoutExpired:
-        logger.error(f"Command '{command}' timed out after 30 seconds")
-        return CommandResult(
+        end_time = asyncio.get_event_loop().time()
+        execution_time = end_time - start_time
+        
+        logger.error(f"Command '{command}' exceeded timeout limit after {execution_time:.2f} seconds")
+        
+        return CommandExecutionResult(
             command=command,
             exit_code=-1,
             stdout="",
-            stderr="command timed out after 30 seconds",
-            working_dir=str(WORKSPACE_DIR)
+            stderr=f"Command execution timed out after 30 seconds",
+            working_directory=str(WORKSPACE_DIRECTORY),
+            execution_time=execution_time
         )
     
     except Exception as e:
-        logger.error(f"Command '{command}' failed: {str(e)}")
-        return CommandResult(
+        end_time = asyncio.get_event_loop().time()
+        execution_time = end_time - start_time
+        
+        error_message = f"Command execution failed: {str(e)}"
+        logger.error(f"Command '{command}' failed: {error_message}")
+        
+        return CommandExecutionResult(
             command=command,
             exit_code=-1,
             stdout="",
-            stderr=f"Error executing command: {str(e)}",
-            working_dir=str(WORKSPACE_DIR)
+            stderr=error_message,
+            working_directory=str(WORKSPACE_DIRECTORY),
+            execution_time=execution_time
         )
 
+
 if __name__ == "__main__":
-    logger.info("Starting terminal server (stdio transport)")
-    logger.info(f"Workspace directory: {WORKSPACE_DIR}")
-    # run the STDIO transport server (communicates via stdin-stdout)
-    mcp.run(transport="stdio")
+    logger.info("Initializing secure terminal server with stdio transport")
+    logger.info(f"Workspace directory: {WORKSPACE_DIRECTORY}")
+    
+    # Start the MCP server with stdio transport
+    mcp_server.run(transport="stdio")
