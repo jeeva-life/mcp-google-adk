@@ -1,7 +1,7 @@
 """
-Test package for MCP Google ADK.
+Test Suite for MCP Google ADK.
 
-This package contains test modules for validating the functionality
+This package contains comprehensive test modules for validating the functionality
 of the MCP Google ADK system components.
 """
 
