@@ -1,23 +1,25 @@
-"# MCP Google ADK
+# Advanced MCP Communication Interface
 
-Model Context Protocol implementation with Google ADK integration.
+A sophisticated Model Context Protocol (MCP) implementation with Google AI Development Kit (ADK) integration, featuring comprehensive debugging capabilities and advanced session management.
 
-## Overview
+## 🚀 Overview
 
-MCP Google ADK is a comprehensive implementation of the Model Context Protocol (MCP) that integrates with Google's AI Development Kit (ADK). This project provides a modular architecture for building and managing MCP servers and clients with support for both HTTP and stdio communication protocols.
+The Advanced MCP Communication Interface is a fully functional implementation of the Model Context Protocol that integrates seamlessly with Google's AI Development Kit. This project provides a modular, production-ready architecture for building and managing MCP servers and clients with support for both HTTP and stdio communication protocols.
 
-## Features
+## ✨ Features
 
-- **Modular Architecture**: Clean separation of concerns with agent, client, and server components
-- **Multiple Server Types**: Support for both HTTP/Streamable and stdio-based MCP servers
-- **Command Line Interface**: Full-featured CLI for managing servers, executing tools, and client operations
-- **Comprehensive Testing**: Unit tests for all major components
-- **Configuration Management**: Flexible configuration system with JSON and environment variable support
-- **Temperature Server**: Example HTTP server for temperature conversion operations
-- **Terminal Server**: Example stdio server for terminal command execution
-- **Response Formatting**: Built-in utilities for formatting responses in various formats
+- **🔧 Advanced Agent Orchestration**: Sophisticated AI agent management with Google ADK integration
+- **🌐 Multiple Server Types**: Support for HTTP/Streamable and stdio-based MCP servers
+- **💬 Interactive CLI**: Full-featured command-line interface with comprehensive debugging
+- **🌡️ Temperature Conversion**: Complete temperature conversion server (Celsius, Fahrenheit, Kelvin)
+- **💻 Terminal Operations**: Secure terminal command execution with workspace isolation
+- **🔍 Verbose Debugging**: Real-time MCP interaction monitoring and detailed logging
+- **⚙️ Configuration Management**: Flexible configuration system with JSON and environment support
+- **🧪 Comprehensive Testing**: Unit tests for all major components
+- **📊 Response Formatting**: Advanced utilities for formatting responses in multiple formats
+- **🔒 Security Features**: Input validation, workspace sandboxing, and command restrictions
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 ├── .env                          # Environment variables
@@ -33,14 +35,14 @@ MCP Google ADK is a comprehensive implementation of the Model Context Protocol (
 │   ├── __init__.py
 │   ├── agent/                  # Agent implementation
 │   │   ├── __init__.py
-│   │   └── agent_wrapper.py    # Agent logic and toolset management
+│   │   └── agent_wrapper.py    # MCPAgentOrchestrator - Advanced agent management
 │   ├── client/                 # Client implementation
 │   │   ├── __init__.py
-│   │   └── mcp_client.py       # Main client interface
+│   │   └── mcp_client.py       # AdvancedMCPCommunicationInterface
 │   └── utils/                  # Utilities and helpers
 │       ├── __init__.py
-│       ├── config_loader.py    # Configuration management
-│       └── formatters.py       # Response formatting utilities
+│       ├── config_loader.py    # MCPConfigurationManager
+│       └── formatters.py       # AdvancedResponseFormatter
 │
 ├── servers/                    # MCP server implementations
 │   ├── __init__.py
@@ -50,11 +52,11 @@ MCP Google ADK is a comprehensive implementation of the Model Context Protocol (
 │   │   └── server_launcher.py     # HTTP server launcher
 │   └── stdio/                  # Stdio servers
 │       ├── __init__.py
-│       └── terminal_server.py  # Terminal command server
+│       └── terminal_server.py  # Secure terminal command server
 │
 ├── cli/                        # Command line interface
 │   ├── __init__.py
-│   └── main.py                 # CLI entry point
+│   └── main.py                 # AdvancedMCPCommandLineInterface
 │
 ├── workspace/                  # Working directory for file operations
 │   └── .gitkeep
@@ -66,92 +68,124 @@ MCP Google ADK is a comprehensive implementation of the Model Context Protocol (
     └── test_servers.py
 ```
 
-## Installation
+## 🛠️ Installation
 
-1. Clone the repository:
+### Prerequisites
+- Python 3.12+
+- Google API Key (for Gemini model access)
+
+### Setup Instructions
+
+1. **Clone the repository:**
 ```bash
 git clone <repository-url>
 cd mcp-google-adk
 ```
 
-2. Create a virtual environment:
+2. **Create and activate virtual environment:**
 ```bash
+# Using uv (recommended)
+uv venv
+uv pip install -r requirements.txt
+
+# Or using pip
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
 pip install -r requirements.txt
 ```
 
-4. Configure environment variables:
+3. **Configure environment variables:**
 ```bash
-cp .env .env.local
-# Edit .env.local with your configuration
+# Set your Google API key
+export GOOGLE_API_KEY="your-api-key-here"
+# Or
+export GEMINI_API_KEY="your-api-key-here"
 ```
 
-## Usage
+## 🚀 Usage
 
-### Command Line Interface
+### Quick Start
 
-The project provides a comprehensive CLI for managing MCP operations:
+Launch the interactive communication interface:
 
 ```bash
-# Server management
-python cli/main.py server start temperature_server
-python cli/main.py server stop all
-python cli/main.py server status
-python cli/main.py server list
-
-# Tool execution
-python cli/main.py tool convert_temperature --value 32 --from fahrenheit --to celsius
-python cli/main.py tool list_directory
-python cli/main.py tool read_file --path /path/to/file
-
-# Client operations
-python cli/main.py client connect temperature_server
-python cli/main.py client disconnect temperature_server
-
-# Agent management
-python cli/main.py agent init
-python cli/main.py agent status
+uv run python cli/main.py
 ```
 
-### Server Implementations
+### Interactive Commands
 
-#### Temperature Server (HTTP)
-The temperature server provides temperature conversion capabilities:
-- Convert between Celsius, Fahrenheit, and Kelvin
-- Get available temperature formats and conversion formulas
+Once the application starts, you can use these commands:
 
-#### Terminal Server (Stdio)
-The terminal server provides command execution capabilities:
-- Execute terminal commands (with security restrictions)
-- List directory contents
-- Read file contents
+- **Natural Language Requests**: Ask questions like "Convert 25°C to Fahrenheit"
+- **`status`**: Display system status and server connections
+- **`debug on/off`**: Toggle verbose debugging mode
+- **`help`**: Show example requests and usage tips
+- **`quit`, `exit`, `:q`**: Exit the application
 
-### Configuration
+### Example Interactions
 
-Server configurations are managed in `config/servers.json`:
+```
+You: Convert 52 degrees Celsius to Kelvin scale
+Assistant: Processing your request...
+[VERBOSE DEBUGGING] Displaying detailed MCP interactions:
+
+Final Agent Response:
+```tool_code
+print(52 + 273.15)
+```
+```
+
+### Available Tools
+
+#### Temperature Conversion Server
+- `celsius_to_fahrenheit` - Convert Celsius to Fahrenheit
+- `fahrenheit_to_celsius` - Convert Fahrenheit to Celsius
+- `celsius_to_kelvin` - Convert Celsius to Kelvin
+- `kelvin_to_celsius` - Convert Kelvin to Celsius
+- `fahrenheit_to_kelvin` - Convert Fahrenheit to Kelvin
+- `kelvin_to_fahrenheit` - Convert Kelvin to Fahrenheit
+
+#### Terminal Server
+- `run_command` - Execute terminal commands (with security restrictions)
+- `list_directory` - List directory contents
+- `read_file` - Read file contents
+- `write_file` - Write content to file
+
+## ⚙️ Configuration
+
+### Server Configuration (`config/servers.json`)
 
 ```json
 {
-  "servers": {
-    "temperature_server": {
-      "name": "Temperature Conversion Server",
-      "type": "http",
-      "host": "localhost",
-      "port": 8001,
-      "description": "HTTP server for temperature conversion operations",
-      "tools": ["convert_temperature", "get_temperature_formats"],
-      "enabled": true
+    "mcpservers": {
+        "temperature_server": {
+            "type": "http",
+            "url": "http://localhost:8001",
+            "description": "Temperature conversion server"
+        },
+        "terminal_server": {
+            "type": "stdio",
+            "command": "python -m servers.stdio.terminal_server",
+            "description": "Terminal command execution server for file operations and system tasks"
+        }
     }
-  }
 }
 ```
 
-## Development
+### Environment Variables
+
+```bash
+# Google API Configuration
+GOOGLE_API_KEY=your-google-api-key
+GEMINI_API_KEY=your-gemini-api-key  # Alternative to GOOGLE_API_KEY
+
+# Application Configuration
+MCP_CONFIG_PATH=config/servers.json
+LOG_LEVEL=INFO
+DEBUG_MODE=false
+```
+
+## 🔧 Development
 
 ### Running Tests
 
@@ -166,9 +200,7 @@ pytest tests/test_agent.py
 pytest --cov=src --cov-report=html
 ```
 
-### Code Quality
-
-The project includes several code quality tools:
+### Code Quality Tools
 
 ```bash
 # Format code
@@ -186,25 +218,97 @@ mypy src/ servers/ cli/
 
 ### Adding New Servers
 
-1. Create a new server class in the appropriate directory (`servers/http/` or `servers/stdio/`)
-2. Implement the required MCP methods (`tools/list`, `tools/call`)
-3. Add server configuration to `config/servers.json`
-4. Write tests for the new server
-5. Update documentation
+1. **Create server implementation** in `servers/http/` or `servers/stdio/`
+2. **Implement MCP methods** using FastMCP framework
+3. **Add configuration** to `config/servers.json`
+4. **Write tests** for the new server
+5. **Update documentation**
 
-## Contributing
+### Server Development Example
+
+```python
+from mcp.server.fastmcp import FastMCP
+from pydantic import BaseModel, Field
+
+# Create FastMCP server
+mcp = FastMCP("my_server", host="localhost", port=8002, stateless_http=True)
+
+# Define input/output models
+class MyInput(BaseModel):
+    value: str = Field(..., description="Input value")
+
+class MyOutput(BaseModel):
+    result: str = Field(..., description="Processing result")
+
+# Register tool
+@mcp.tool(description="My custom tool")
+async def my_tool(params: MyInput) -> MyOutput:
+    return MyOutput(result=f"Processed: {params.value}")
+
+# Start server
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(mcp.run_streamable_http_async())
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+1. **Server not starting**: Check if port 8001 is available
+2. **API key errors**: Ensure GOOGLE_API_KEY is set correctly
+3. **Import errors**: Verify all dependencies are installed
+4. **Permission errors**: Check workspace directory permissions
+
+### Debug Mode
+
+Enable verbose debugging to see detailed MCP interactions:
+
+```bash
+# In the CLI
+debug on
+
+# Or set environment variable
+export DEBUG_MODE=true
+```
+
+### Logs
+
+Application logs are written to:
+- Console output (INFO level and above)
+- `mcp_interface.log` file (all levels)
+
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
 4. Add tests for new functionality
-5. Ensure all tests pass
-6. Submit a pull request
+5. Ensure all tests pass (`pytest`)
+6. Run code quality checks (`black`, `flake8`, `mypy`)
+7. Commit your changes (`git commit -m 'Add amazing feature'`)
+8. Push to the branch (`git push origin feature/amazing-feature`)
+9. Open a Pull Request
 
-## License
+## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Support
+## 🆘 Support
 
-For questions and support, please open an issue in the repository or contact the development team." 
+- **Issues**: Open an issue in the repository
+- **Documentation**: Check the inline code documentation
+- **Examples**: See the `tests/` directory for usage examples
+
+## 🎯 Roadmap
+
+- [ ] Web-based interface
+- [ ] Additional MCP server implementations
+- [ ] Enhanced security features
+- [ ] Performance optimizations
+- [ ] Docker containerization
+- [ ] Kubernetes deployment support
+
+---
+
+**Built with ❤️ using Google ADK and FastMCP**
