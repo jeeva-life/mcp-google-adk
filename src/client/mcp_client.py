@@ -1,312 +1,262 @@
 """
-Advanced MCP Client Manager for Google ADK.
+Advanced MCP Communication Interface.
 
-This module provides a comprehensive client implementation for communicating
-with Model Context Protocol servers and managing client-server interactions.
+This module provides a sophisticated client interface for managing Model Context Protocol
+interactions with comprehensive debugging capabilities and session management.
 """
 
-import asyncio
-import json
 import logging
-from typing import Dict, List, Any, Optional, Callable, Union
-from dataclasses import dataclass, asdict
-from enum import Enum
-import uuid
+import asyncio
+from typing import Optional, List, AsyncGenerator, Any, Dict
+from dataclasses import dataclass
+from google.genai.types import Content, Part
+from google.adk import Runner
+from google.adk.sessions import InMemorySessionService
+
+from src.agent.agent_wrapper import MCPAgentOrchestrator
+from src.utils.formatters import formatter
 
 logger = logging.getLogger(__name__)
 
 
-class MessageType(Enum):
-    """MCP message type enumeration."""
-    REQUEST = "request"
-    RESPONSE = "response"
-    NOTIFICATION = "notification"
-
-
 @dataclass
-class MCPMessage:
-    """Structured MCP message representation."""
-    id: Optional[str]
-    method: str
-    params: Optional[Dict[str, Any]] = None
-    result: Optional[Any] = None
-    error: Optional[Dict[str, Any]] = None
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert message to dictionary format."""
-        return asdict(self)
+class ClientSessionInfo:
+    """Information about the client session."""
+    app_identifier: str
+    user_identifier: str
+    session_identifier: str
+    debug_enabled: bool = False
 
 
-@dataclass
-class ConnectionInfo:
-    """Information about a server connection."""
-    name: str
-    connection_type: str
-    status: str = "disconnected"
-    connected_at: Optional[float] = None
-    last_activity: Optional[float] = None
-
-
-class MCPClientManager:
+class AdvancedMCPCommunicationInterface:
     """
-    Advanced MCP client manager for Google ADK.
+    Sophisticated MCP communication interface with advanced session management.
     
-    This class handles communication with MCP servers, manages connections,
-    and provides a high-level interface for MCP operations with comprehensive
-    error handling and connection management.
+    This interface provides comprehensive interaction capabilities with Model Context Protocol
+    servers, featuring real-time streaming, detailed debugging, and robust session handling.
     """
     
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(
+        self,
+        application_name: str = "universal_mcp_interface",
+        user_identifier: str = "default_user",
+        session_identifier: str = "default_session",
+        allowed_tools: Optional[List[str]] = None,
+        verbose_debugging: bool = False
+    ):
         """
-        Initialize the MCP client manager.
+        Initialize the advanced MCP communication interface.
         
         Args:
-            config: Configuration dictionary containing client settings
+            application_name: Application identifier for ADK framework
+            user_identifier: Unique user identifier for session context
+            session_identifier: Session identifier for conversation tracking
+            allowed_tools: Optional list of permitted tool names
+            verbose_debugging: Enable comprehensive debugging of MCP interactions
         """
-        self.config = config
-        self.active_connections: Dict[str, Any] = {}
-        self.message_handlers: Dict[str, Callable] = {}
-        self.connection_info: Dict[str, ConnectionInfo] = {}
-        self.logger = logging.getLogger(self.__class__.__name__)
-        self._message_id_counter = 0
-        self._setup_logging()
-    
-    def _setup_logging(self) -> None:
-        """Configure logging for the client manager."""
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        self.session_info = ClientSessionInfo(
+            app_identifier=application_name,
+            user_identifier=user_identifier,
+            session_identifier=session_identifier,
+            debug_enabled=verbose_debugging
         )
-    
-    async def establish_connection(self, server_name: str, connection_config: Dict[str, Any]) -> bool:
-        """
-        Establish connection to an MCP server.
         
-        Args:
-            server_name: Name of the server to connect to
-            connection_config: Configuration for the connection
-            
-        Returns:
-            bool: True if connection successful, False otherwise
+        # Initialize core communication components
+        self.session_manager = InMemorySessionService()
+        self.agent_orchestrator = MCPAgentOrchestrator(tool_allowlist=allowed_tools)
+        self.execution_runner: Optional[Runner] = None
+        
+        # State management
+        self.initialization_complete = False
+        
+        logger.info(f"Advanced MCP Interface initialized for user '{user_identifier}', session '{session_identifier}'")
+        if verbose_debugging:
+            logger.info("Verbose debugging enabled - comprehensive MCP interaction details will be displayed")
+    
+    async def establish_communication_session(self) -> None:
         """
+        Establish the communication session and initialize the agent system.
+        
+        This method must be called before using process_user_input().
+        It configures the session, initializes the agent, and prepares the execution runner.
+        """
+        if self.initialization_complete:
+            logger.warning("Communication interface already initialized")
+            return
+        
         try:
-            self.logger.info(f"Establishing connection to server: {server_name}")
+            logger.info("Establishing MCP communication session...")
             
-            connection_type = connection_config.get("type", "stdio")
+            # Create ADK framework session
+            await self.session_manager.create_session(
+                app_name=self.session_info.app_identifier,
+                user_id=self.session_info.user_identifier,
+                session_id=self.session_info.session_identifier
+            )
+            logger.debug("ADK framework session established")
             
-            if connection_type == "stdio":
-                connection = await self._create_stdio_connection(connection_config)
-            elif connection_type == "http":
-                connection = await self._create_http_connection(connection_config)
-            else:
-                raise ValueError(f"Unsupported connection type: {connection_type}")
+            # Initialize agent orchestrator with all MCP toolsets
+            await self.agent_orchestrator.initialize_agent()
             
-            self.active_connections[server_name] = connection
-            self.connection_info[server_name] = ConnectionInfo(
-                name=server_name,
-                connection_type=connection_type,
-                status="connected",
-                connected_at=asyncio.get_event_loop().time()
+            if not self.agent_orchestrator.is_initialized():
+                raise RuntimeError("Agent orchestrator failed to initialize properly")
+            
+            # Create execution runner for agent processing
+            self.execution_runner = Runner(
+                agent=self.agent_orchestrator.ai_agent,
+                app_name=self.session_info.app_identifier,
+                session_service=self.session_manager
             )
             
-            self.logger.info(f"Successfully connected to server: {server_name}")
-            return True
+            self.initialization_complete = True
+            logger.info("MCP communication interface initialized successfully")
+            
+            # Display server connection status summary
+            connection_status = self.agent_orchestrator.get_connection_status()
+            active_connections = sum(1 for s in connection_status.values() if s.status == "connected")
+            logger.info(f"Server connection status: {active_connections}/{len(connection_status)} servers active")
             
         except Exception as e:
-            self.logger.error(f"Failed to connect to server {server_name}: {e}")
-            self.connection_info[server_name] = ConnectionInfo(
-                name=server_name,
-                connection_type=connection_config.get("type", "unknown"),
-                status="failed"
+            logger.error(f"Failed to establish MCP communication session: {e}")
+            await self.terminate_session()
+            raise
+
+    async def process_user_input(self, user_input: str) -> AsyncGenerator[Any, None]:
+        """
+        Process user input and stream the agent's response with comprehensive debugging.
+        
+        Args:
+            user_input: User input message to process
+            
+        Yields:
+            Streaming response events from the agent with detailed MCP interaction information
+            
+        Raises:
+            RuntimeError: If communication interface is not initialized
+        """
+        if not self.initialization_complete:
+            raise RuntimeError("Communication interface not initialized. Call establish_communication_session() first.")
+        
+        if not user_input.strip():
+            raise ValueError("User input cannot be empty")
+        
+        logger.info(f"Processing user input: {user_input[:100]}{'...' if len(user_input) > 100 else ''}")
+        
+        try:
+            # Create content structure for ADK framework
+            content_structure = Content(
+                role="user",
+                parts=[Part(text=user_input)]
             )
-            return False
-    
-    async def _create_stdio_connection(self, config: Dict[str, Any]) -> Any:
-        """Create stdio-based connection."""
-        # TODO: Implement stdio connection logic
-        return {"type": "stdio", "connected": True, "config": config}
-    
-    async def _create_http_connection(self, config: Dict[str, Any]) -> Any:
-        """Create HTTP-based connection."""
-        # TODO: Implement HTTP connection logic
-        return {
-            "type": "http",
-            "host": config.get("host", "localhost"),
-            "port": config.get("port", 8000),
-            "connected": True,
-            "config": config
+            
+            event_sequence = 0
+            # Process through agent and yield streaming responses with debugging
+            async for response_event in self.execution_runner.run_async(
+                user_id=self.session_info.user_identifier,
+                session_id=self.session_info.session_identifier,
+                new_message=content_structure
+            ):
+                event_sequence += 1
+                
+                # Display comprehensive debugging information
+                if self.session_info.debug_enabled:
+                    # Create a formatted output object for the response event
+                    formatted_output = formatter.create_success_response(
+                        data=response_event,
+                        message=f"Event #{event_sequence}"
+                    )
+                    print(formatter.format_to_json(formatted_output))
+                    self._examine_response_event(response_event, event_sequence)
+                
+                yield response_event
+                
+        except Exception as e:
+            logger.error(f"Error processing user input: {e}")
+            raise
+
+    def _examine_response_event(self, response_event: Any, event_sequence: int) -> None:
+        """
+        Examine and display comprehensive information about MCP response events.
+        
+        Args:
+            response_event: The response event object from the agent
+            event_sequence: Sequential event number for tracking
+        """
+        try:
+            # Examine tool-related events
+            if hasattr(response_event, 'tool_calls') and response_event.tool_calls:
+                for tool_invocation in response_event.tool_calls:
+                    tool_name = tool_invocation.name if hasattr(tool_invocation, 'name') else "Unknown"
+                    formatter.print_tool_summary(
+                        "tool_invocation",
+                        [tool_name]
+                    )
+                    logger.debug(f"Tool invocation: {tool_name}")
+            
+            # Examine tool response events
+            if hasattr(response_event, 'tool_responses') and response_event.tool_responses:
+                for tool_result in response_event.tool_responses:
+                    tool_name = getattr(tool_result, 'name', 'Unknown')
+                    execution_status = "success" if not hasattr(tool_result, 'error') else "error"
+                    logger.debug(f"Tool execution result: {tool_name} - {execution_status}")
+            
+            # Examine agent processing events
+            if hasattr(response_event, 'content') and hasattr(response_event.content, 'parts'):
+                if response_event.content.parts and not getattr(response_event, 'is_final_response', lambda: False)():
+                    processing_content = response_event.content.parts[0].text if response_event.content.parts else "Processing..."
+                    logger.debug(f"Agent processing: {processing_content[:100]}...")
+            
+            # Examine final response events
+            if hasattr(response_event, 'is_final_response') and response_event.is_final_response():
+                final_content = ""
+                if hasattr(response_event, 'content') and hasattr(response_event.content, 'parts') and response_event.content.parts:
+                    final_content = response_event.content.parts[0].text
+                
+                logger.info(f"Final agent response: {final_content[:200]}{'...' if len(final_content) > 200 else ''}")
+                
+        except Exception as e:
+            logger.debug(f"Error examining response event {event_sequence}: {e}")
+
+    def toggle_verbose_debugging(self) -> bool:
+        """Toggle verbose debugging mode on/off and return new state."""
+        self.session_info.debug_enabled = not self.session_info.debug_enabled
+        logger.info(f"Verbose debugging {'enabled' if self.session_info.debug_enabled else 'disabled'}")
+        return self.session_info.debug_enabled
+
+    async def terminate_session(self) -> None:
+        """
+        Gracefully terminate the communication session and cleanup all resources.
+        """
+        logger.info("Terminating MCP communication session...")
+        
+        try:
+            if self.agent_orchestrator:
+                await self.agent_orchestrator.shutdown()
+            
+            # Reset state
+            self.execution_runner = None
+            self.initialization_complete = False
+            
+            logger.info("MCP communication session terminated successfully")
+            
+        except Exception as e:
+            logger.error(f"Error during session termination: {e}")
+
+    def get_interface_status(self) -> Dict[str, Any]:
+        """
+        Get comprehensive interface status information.
+        
+        Returns:
+            Dictionary with detailed interface status information
+        """
+        status = {
+            "initialization_complete": self.initialization_complete,
+            "verbose_debugging": self.session_info.debug_enabled,
+            "application_name": self.session_info.app_identifier,
+            "user_identifier": self.session_info.user_identifier,
+            "session_identifier": self.session_info.session_identifier,
+            "agent_ready": self.agent_orchestrator.is_initialized() if self.agent_orchestrator else False,
+            "server_connection_status": self.agent_orchestrator.get_connection_status() if self.agent_orchestrator else {}
         }
-    
-    async def send_request_message(self, server_name: str, method: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """
-        Send a request message to an MCP server.
         
-        Args:
-            server_name: Name of the target server
-            method: MCP method to call
-            params: Parameters for the method
-            
-        Returns:
-            Dict[str, Any]: Response from the server
-        """
-        try:
-            if server_name not in self.active_connections:
-                raise ValueError(f"No active connection to server: {server_name}")
-            
-            message_id = self._generate_unique_message_id()
-            message = MCPMessage(
-                id=message_id,
-                method=method,
-                params=params
-            )
-            
-            self.logger.debug(f"Sending request to {server_name}: {message.to_dict()}")
-            
-            # TODO: Implement actual message sending logic
-            # This is a placeholder implementation
-            response = {
-                "id": message_id,
-                "result": {"status": "success", "method": method},
-                "error": None
-            }
-            
-            # Update connection activity
-            if server_name in self.connection_info:
-                self.connection_info[server_name].last_activity = asyncio.get_event_loop().time()
-            
-            self.logger.debug(f"Received response from {server_name}: {response}")
-            return response
-            
-        except Exception as e:
-            self.logger.error(f"Error sending request to {server_name}: {e}")
-            return {
-                "id": message_id if 'message_id' in locals() else None,
-                "result": None,
-                "error": {"code": -1, "message": str(e)}
-            }
-    
-    async def send_notification_message(self, server_name: str, method: str, params: Optional[Dict[str, Any]] = None) -> None:
-        """
-        Send a notification message to an MCP server.
-        
-        Args:
-            server_name: Name of the target server
-            method: MCP method for the notification
-            params: Parameters for the notification
-        """
-        try:
-            if server_name not in self.active_connections:
-                raise ValueError(f"No active connection to server: {server_name}")
-            
-            message = MCPMessage(
-                id=None,  # Notifications don't have IDs
-                method=method,
-                params=params
-            )
-            
-            self.logger.debug(f"Sending notification to {server_name}: {message.to_dict()}")
-            
-            # TODO: Implement actual notification sending logic
-            self.logger.info(f"Notification sent to {server_name}: {method}")
-            
-            # Update connection activity
-            if server_name in self.connection_info:
-                self.connection_info[server_name].last_activity = asyncio.get_event_loop().time()
-            
-        except Exception as e:
-            self.logger.error(f"Error sending notification to {server_name}: {e}")
-    
-    def register_message_handler(self, method: str, handler: Callable) -> None:
-        """
-        Register a message handler for a specific method.
-        
-        Args:
-            method: MCP method name
-            handler: Handler function to call for this method
-        """
-        self.message_handlers[method] = handler
-        self.logger.debug(f"Registered message handler for method: {method}")
-    
-    async def process_incoming_message(self, message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """
-        Process an incoming MCP message.
-        
-        Args:
-            message: Incoming MCP message
-            
-        Returns:
-            Optional[Dict[str, Any]]: Response message if applicable
-        """
-        try:
-            method = message.get("method")
-            if not method:
-                self.logger.warning("Received message without method field")
-                return None
-            
-            if method in self.message_handlers:
-                handler = self.message_handlers[method]
-                result = await handler(message.get("params", {}))
-                
-                if message.get("id"):  # Only send response for requests
-                    return {
-                        "id": message["id"],
-                        "result": result,
-                        "error": None
-                    }
-            else:
-                self.logger.warning(f"No handler registered for method: {method}")
-                
-        except Exception as e:
-            self.logger.error(f"Error processing incoming message: {e}")
-            if message.get("id"):  # Only send error response for requests
-                return {
-                    "id": message["id"],
-                    "result": None,
-                    "error": {"code": -1, "message": str(e)}
-                }
-        
-        return None
-    
-    def _generate_unique_message_id(self) -> str:
-        """Generate a unique message ID."""
-        self._message_id_counter += 1
-        return f"{self._message_id_counter}_{uuid.uuid4().hex[:8]}"
-    
-    async def terminate_connection(self, server_name: str) -> None:
-        """
-        Terminate connection to an MCP server.
-        
-        Args:
-            server_name: Name of the server to disconnect from
-        """
-        try:
-            if server_name in self.active_connections:
-                # TODO: Implement actual disconnection logic
-                del self.active_connections[server_name]
-                
-                if server_name in self.connection_info:
-                    self.connection_info[server_name].status = "disconnected"
-                
-                self.logger.info(f"Disconnected from server: {server_name}")
-            else:
-                self.logger.warning(f"No active connection found for server: {server_name}")
-                
-        except Exception as e:
-            self.logger.error(f"Error disconnecting from server {server_name}: {e}")
-    
-    async def shutdown_client(self) -> None:
-        """Shutdown the client and close all connections."""
-        self.logger.info("Initiating client shutdown and connection cleanup...")
-        
-        for server_name in list(self.active_connections.keys()):
-            await self.terminate_connection(server_name)
-        
-        self.logger.info("Client shutdown completed successfully")
-    
-    def get_connection_status(self) -> Dict[str, ConnectionInfo]:
-        """Get the current status of all connections."""
-        return self.connection_info.copy()
-    
-    def is_connected(self, server_name: str) -> bool:
-        """Check if connected to a specific server."""
-        return server_name in self.active_connections and server_name in self.connection_info and self.connection_info[server_name].status == "connected"
+        return status

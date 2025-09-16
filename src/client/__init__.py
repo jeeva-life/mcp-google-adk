@@ -1,10 +1,10 @@
 """
-MCP Client Package for Google ADK Integration.
+Advanced MCP Communication Interface Package.
 
-This package contains the client implementation for communicating with
-MCP servers and managing client-server interactions.
+This package contains the sophisticated client implementation for managing
+Model Context Protocol interactions with comprehensive debugging capabilities.
 """
 
-from .mcp_client import MCPClientManager
+from .mcp_client import AdvancedMCPCommunicationInterface
 
-__all__ = ["MCPClientManager"]
+__all__ = ["AdvancedMCPCommunicationInterface"]
