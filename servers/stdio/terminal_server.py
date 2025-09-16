@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
 from mcp.server.fastmcp import FastMCP
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 # Configure logging for the terminal server
 logging.basicConfig(level=logging.INFO)
@@ -39,7 +39,8 @@ class SecureCommandRequest(BaseModel):
         max_length=1000
     )
     
-    @validator('command')
+    @field_validator('command')
+    @classmethod
     def validate_command(cls, v):
         """Validate command input for security."""
         if not v.strip():
