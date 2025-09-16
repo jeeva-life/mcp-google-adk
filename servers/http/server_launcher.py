@@ -19,7 +19,7 @@ class ServerLauncher:
     def __init__(self):
         self.processes: List[subprocess.Popen] = [] # Keeps a list of server processes it has started.
 
-    def start_temperature_server(self, host: str = "localhost", port: int = 8000) -> bool:
+    def start_temperature_server(self, host: str = "localhost", port: int = 8001) -> bool:
         """Start the temperature conversion server with health monitoring"""
 
         try:
@@ -54,19 +54,20 @@ class ServerLauncher:
         """
         wait for server to become available with health checking"""
         start_time = time.time()
+        url = f"http://{host}:{port}"
 
         while time.time() - start_time < timeout:
             try:
                 # try to connect to the MCP endpoint
                 # we expect a 406 "not acceptable" response for stateless HTTP
                 # but needs proper MCP headers (this confirms the MCP server is active)
-                response = requests.get(url, timeout=5)
-                if response.status_code == 406: # MCP server expects proper headers
+                response = requests.get(f"{url}/mcp", timeout=5)
+                if response.status_code == 406 or "Not Acceptable" in response.text: # MCP server expects proper headers
                     logger.info(f"Temperature server at {host}:{port} is ready")
                     return True
-                except requests.exceptions.RequestException as e:
-                    logger.warning(f"Failed to connect to temperature server: {str(e)}")
-                    pass
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"Failed to connect to temperature server: {str(e)}")
+                pass
             time.sleep(1)
         logger.warning(f"server at {host}:{port} did not respond in time")
         return False

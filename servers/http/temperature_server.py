@@ -5,7 +5,7 @@ Provides temperature conversion capabilities through MCP HTTP protocol.
 import click
 import logging
 from typing import Union
-from pydantic import BaseModel, Field, Validator
+from pydantic import BaseModel, Field, field_validator
 from mcp.server.fastmcp import FastMCP
 
 @click.command()
@@ -37,7 +37,8 @@ def main(port: int, host: str, log_level: str) -> None:
         """Input model for temperature conversio with validation"""
         temperature: float = Field(..., description="Temperature value to convert")
 
-        @validator("temperature")
+        @field_validator("temperature")
+        @classmethod
         def validate_temperature_range(cls, v):
             """Validate temperature range between -273.15 and 100000"""
             if v < -273.15 or v > 100000:
@@ -182,7 +183,17 @@ def main(port: int, host: str, log_level: str) -> None:
             formula="F = (K - 273.15) * 9/5 + 32"
         )
 
+    # Start the server
+    logger.info("Starting temperature conversion MCP server (HTTP transport)")
+    try:
+        import asyncio
+        asyncio.run(mcp.run_streamable_http_async())
+    except KeyboardInterrupt:
+        logger.info("Server stopped by user")
+    except Exception as e:
+        logger.error(f"Server error: {e}")
+        raise
+
 
 if __name__ == "__main__":
-    logger.info("Starting temperature conversion MCP server (HTTP transport)")
     main()
