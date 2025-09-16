@@ -5,6 +5,6 @@ This package contains the agent implementation that manages toolset operations
 and coordinates between MCP servers and clients.
 """
 
-from .agent_wrapper import AgentWrapper
+from .agent_wrapper import MCPAgentOrchestrator
 
-__all__ = ["AgentWrapper"]
+__all__ = ["MCPAgentOrchestrator"]
