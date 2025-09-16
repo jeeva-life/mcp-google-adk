@@ -263,6 +263,25 @@ class AdvancedResponseFormatter:
         
         return "\n".join(lines)
     
+    def print_welcome_banner(self) -> None:
+        """Print a welcome banner for the application."""
+        banner = """
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    Advanced MCP Communication Interface                     ║
+║                                                                              ║
+║  Welcome to the Model Context Protocol (MCP) integration system!            ║
+║  This interface provides comprehensive debugging and interaction            ║
+║  capabilities with MCP servers and AI agents.                               ║
+║                                                                              ║
+║  Features:                                                                   ║
+║  • Temperature conversion tools                                              ║
+║  • Terminal command execution                                                ║
+║  • Real-time MCP interaction debugging                                       ║
+║  • Advanced session management                                               ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+        """
+        print(banner)
+    
     def print_tool_summary(self, server_name: str, tool_names: List[str]) -> None:
         """
         Print a summary of tools available from a server.
